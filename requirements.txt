@@ -1,0 +1,5 @@
+flask
+boto3==1.24.17
+PyPDF2==3.0.1
+docx2python==2.0.4
+pdfplumber==0.5.28

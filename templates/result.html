@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recommendation Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Top 5 Recommended Freelancers</h1>
+
+        {% if predictions %}
+            <div class="recommendations">
+                {% for freelancer in predictions %}
+                    <div class="recommendation-card">
+                        <h2>{{ freelancer.name }}</h2>
+                        <p><strong>User ID:</strong> {{ freelancer.user_id }}</p>
+                        <p><strong>Skills:</strong> {{ freelancer.skills }}</p>
+                        <p><strong>Tools:</strong> {{ freelancer.tools }}</p>
+
+                        {% if freelancer.portfolio_website %}
+                            <p><strong>Portfolio:</strong> <a href="{{ freelancer.portfolio_website }}" target="_blank">View Portfolio</a></p>
+                        {% endif %}
+
+                        {% if freelancer.linkedin_profile %}
+                            <p><strong>LinkedIn:</strong> <a href="{{ freelancer.linkedin_profile }}" target="_blank">View Profile</a></p>
+                        {% endif %}
+
+                        {% if freelancer.resume_link %}
+                            <p><strong>Resume:</strong> <a href="{{ freelancer.resume_link }}" target="_blank">View Resume</a></p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No recommendations available.</p>
+        {% endif %}
+
+        <a href="{{ url_for('index') }}" class="back-button">Back to Home</a>
+    </div>
+</body>
+</html>
