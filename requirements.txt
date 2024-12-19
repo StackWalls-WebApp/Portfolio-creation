@@ -1,0 +1,8 @@
+Flask
+Flask-CORS
+pymongo
+python-dotenv
+PyPDF2
+requests
+langchain-google-genai
+gunicorn
