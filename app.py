@@ -7,6 +7,7 @@ from utils import error_response, success_response, setup_logging
 import logging
 import json
 import re
+from bson import ObjectId  # Ensure ObjectId is imported
 
 app = Flask(__name__)
 CORS(app)
@@ -21,6 +22,18 @@ except ValueError as ve:
 
 db = Database()
 
+def validate_user_data(user, freelancer):
+    if user:
+        required_user_fields = ['first_name', 'last_name', 'github_profile', 'profile_photo']
+        for field in required_user_fields:
+            if field not in user:
+                logging.warning(f"User data missing field: {field}")
+    if freelancer:
+        required_freelancer_fields = ['name', 'work_description', 'portfolio_website', 'skills', 'tools']
+        for field in required_freelancer_fields:
+            if field not in freelancer:
+                logging.warning(f"Freelancer data missing field: {field}")
+
 @app.route('/generate_portfolio', methods=['POST'])
 def generate_portfolio_api():
     try:
@@ -32,13 +45,20 @@ def generate_portfolio_api():
         if not user_id:
             return error_response("Empty 'user_id' provided.", 400)
         
+        # Validate user_id format
+        if not ObjectId.is_valid(user_id):
+            return error_response("Invalid 'user_id' format.", 400)
+
         # Fetch user and freelancer data
         freelancer = db.get_freelancer(user_id)
         user = db.get_user(user_id)
 
         if not freelancer and not user:
             return error_response("User not found.", 404)
-        
+
+        # Validate fetched data
+        validate_user_data(user, freelancer)
+
         # Extract resume text if available
         resume_text = None
         if freelancer and "resume" in freelancer and isinstance(freelancer["resume"], dict):
@@ -61,30 +81,38 @@ def generate_portfolio_api():
                 freelancer_name = full_name
         if (freelancer_name == "N/A" or not freelancer_name) and freelancer:
             freelancer_name = freelancer.get("name", "N/A")
-        
-        # Extract other details
+
+        # Safeguard the 'work_description' processing
         about = ""
         if freelancer and "work_description" in freelancer:
-            about = re.sub(r"<.*?>", "", freelancer["work_description"]).strip()
-        
+            work_description = freelancer["work_description"]
+            if isinstance(work_description, str):
+                about = re.sub(r"<.*?>", "", work_description).strip()
+            else:
+                logging.warning(f"'work_description' is not a string: {work_description}")
+                about = ""
+
+        # Extract other details
         github_link = user.get("github_profile") if user else None
-        portfolio_website = freelancer.get("portfolio_website", "") if freelancer else ""
-        project_links = freelancer.get("project_links", "") if freelancer else ""
+        portfolio_website = freelancer.get("portfolio_website") if freelancer else ""
+        portfolio_website = portfolio_website or ""  # Ensure string
+        project_links = freelancer.get("project_links") if freelancer else ""
+        project_links = project_links or ""  # Ensure string
         linkedin_link = freelancer.get("linkedIn_profile") if freelancer else None
-        
+
         behance_link = portfolio_website if "behance.net" in portfolio_website else None
         dribbble_link = project_links if "dribbble.com" in project_links else None
         portfolio_link = portfolio_website if portfolio_website.strip() and not behance_link and not dribbble_link else None
-        
+
         freelancer_skills = freelancer.get("skills", []) if freelancer else []
         freelancer_tools = freelancer.get("tools", []) if freelancer else []
         combined_skills = freelancer_skills + freelancer_tools
         matched_services, matched_tools = map_services_and_tools(combined_skills)
-        
+
         profile_photo = user.get("profile_photo") if user and "profile_photo" in user else None
         if not profile_photo and freelancer and "profile_photo" in freelancer:
             profile_photo = freelancer["profile_photo"]
-        
+
         # Prepare data for AI
         portfolio_data = {
             "full_name": freelancer_name,
@@ -104,6 +132,9 @@ def generate_portfolio_api():
 
         return success_response(portfolio_json)
     
+    except ValueError as ve:
+        logging.error(f"ValueError: {ve}")
+        return error_response(str(ve), 400)
     except Exception as e:
         logging.error(f"Unhandled exception: {e}", exc_info=True)
         return error_response("Internal Server Error.", 500)

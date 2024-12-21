@@ -98,58 +98,69 @@ def initialize_llm(api_key):
 def generate_portfolio(data, resume_text):
     try:
         instructions = f"""
-You are an AI assistant. You have the following data about a freelancer:
-
-Full Name: {data['full_name']}
-About (raw): {data['about']}
-Github link: {data.get('github_link')}
-Behance link: {data.get('behance_link')}
-Dribbble link: {data.get('dribbble_link')}
-Portfolio link: {data.get('portfolio_link')}
-LinkedIn link: {data.get('linkedin_link')}
-Profile Photo: {data.get('profile_photo')}
-
-Services (Matched from freelancer skills):
-{json.dumps(data['services'], indent=2)}
-
-Tools (Matched from freelancer tools):
-{json.dumps(data['tools'], indent=2)}
-
-Resume Text (raw):
-{resume_text}
-
-Your task:
-1. Create a professional and creative portfolio in JSON format with these fields:
-   - full_name
-   - about: A compelling, professional, and creative narrative using all known data.
-   - profile_photo (if available)
-   - github_link (if present)
-   - behance_link (if present)
-   - dribbble_link (if present)
-   - linkedin_link (if present)
-   - portfolio_link (if present and not Behance or Dribbble)
-   - services: array of {{ "category": "CategoryName", "services": ["service1","service2",...] }}
-   - tools: array of tools (strings)
-   - projects: array of {{ "title": "...", "description": ["bullet1","bullet2",...], (optional) "link":"...", (optional)"files":"..." }}
-     Make each bullet point a substantial, well-structured sentence that clearly explains the work done, the context, and the value provided.
-   - experience: array of {{ "title": "...", "company_name": "...", "description": ["bullet1","bullet2",...], "start_date": "MM/YYYY", "end_date": "MM/YYYY or empty if currently working" }}
-     Similarly, make each bullet point more detailed and descriptive, explaining responsibilities, achievements, and the impact made.
-
-2. Ensure no repeated fields or invalid JSON. The description arrays should contain multiple, well-structured sentences in bullet form, each providing meaningful detail.
-
-3. Produce only a valid JSON object with no extra formatting, no code fences, and no markdown.
-"""
+        You are an AI assistant. You have the following data about a freelancer:
+        
+        Full Name: {data['full_name']}
+        About (raw): {data['about']}
+        Github link: {data.get('github_link')}
+        Behance link: {data.get('behance_link')}
+        Dribbble link: {data.get('dribbble_link')}
+        Portfolio link: {data.get('portfolio_link')}
+        LinkedIn link: {data.get('linkedin_link')}
+        Profile Photo: {data.get('profile_photo')}
+        
+        Services (Matched from freelancer skills):
+        {json.dumps(data['services'], indent=2)}
+        
+        Tools (Matched from freelancer tools):
+        {json.dumps(data['tools'], indent=2)}
+        
+        Resume Text (raw):
+        {resume_text}
+        
+        Your task:
+        1. Create a professional and creative portfolio in JSON format with these fields:
+           - full_name
+           - about: A compelling, professional, and creative narrative using all known data.
+           - profile_photo (if available)
+           - github_link (if present)
+           - behance_link (if present)
+           - dribbble_link (if present)
+           - linkedin_link (if present)
+           - portfolio_link (if present and not Behance or Dribbble)
+           - services: array of {{ "category": "CategoryName", "services": ["service1","service2",...] }}
+           - tools: array of tools (strings)
+           - projects: array of {{ "title": "...", "description": ["bullet1","bullet2",...], (optional) "link":"...", (optional)"files":"..." }}
+             Make each bullet point a substantial, well-structured sentence that clearly explains the work done, the context, and the value provided.
+           - experience: array of {{ "title": "...", "company_name": "...", "description": ["bullet1","bullet2",...], "start_date": "MM/YYYY", "end_date": "MM/YYYY or empty if currently working" }}
+             Similarly, make each bullet point more detailed and descriptive, explaining responsibilities, achievements, and the impact made.
+        
+        2. Ensure no repeated fields or invalid JSON. The description arrays should contain multiple, well-structured sentences in bullet form, each providing meaningful detail.
+        
+        3. Produce only a valid JSON object with no extra formatting, no code fences, and no markdown.
+        """
         llm = initialize_llm(Config.GOOGLE_API_KEY)
         ai_message = llm.invoke(instructions)
         response_text = ai_message.content
 
+        # Log the raw AI response for debugging
+        logging.debug(f"AI Response: {response_text}")
+
         cleaned_response = response_text.strip()
         cleaned_response = re.sub(r"```[\s\S]*?```", "", cleaned_response).strip()
+
+        # Log the cleaned response
+        logging.debug(f"Cleaned AI Response: {cleaned_response}")
+
+        if not cleaned_response:
+            logging.error("AI returned an empty response.")
+            raise ValueError("AI returned an empty response.")
 
         parsed_json = json.loads(cleaned_response)
         return parsed_json
     except json.JSONDecodeError as je:
         logging.error(f"JSON decoding failed: {je}")
+        logging.debug(f"Response Text: {response_text}")
         raise je
     except Exception as e:
         logging.error(f"Error generating portfolio: {e}")
